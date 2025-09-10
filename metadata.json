@@ -1,0 +1,5 @@
+{
+  "name": "React Tetris",
+  "description": "Klasická hra Tetris postavená pomocí Reactu, TypeScriptu a Tailwind CSS. Ovládejte padající bloky šipkami, otáčejte je a čistěte řádky, abyste získali body.",
+  "requestFramePermissions": []
+}
