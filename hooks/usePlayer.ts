@@ -1,6 +1,5 @@
-
 import { useState, useCallback } from 'react';
-import { TETROMINOS, BOARD_WIDTH, checkCollision, GameBoard } from '../gameHelpers';
+import { TETROMINOS, BOARD_WIDTH, checkCollision, GameBoard, randomTetromino } from '../gameHelpers';
 
 type TetrominoShape = (string | number)[][];
 
@@ -45,10 +44,7 @@ export const usePlayer = () => {
         }
         setPlayer(clonedPlayer);
     };
-
-    // FIX: The original function contained incorrect collision logic that caused a compile error and game bugs.
-    // The collision detection logic is moved to App.tsx where the 'board' state is accessible.
-    // This function now only updates the player's state.
+    
     const updatePlayerPos = useCallback(({ x, y, collided }: { x: number, y: number, collided: boolean }) => {
         setPlayer(prev => ({
             ...prev,
@@ -63,10 +59,27 @@ export const usePlayer = () => {
             tetromino: TETROMINOS[nextTetromino],
             collided: false,
         });
-        const tetrominoKeys = Object.keys(TETROMINOS).filter(key => key !== '0');
-        const randomKey = tetrominoKeys[Math.floor(Math.random() * tetrominoKeys.length)] as keyof typeof TETROMINOS;
-        setNextTetromino(randomKey);
+        setNextTetromino(randomTetromino());
     }, [nextTetromino]);
 
-    return { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino };
+    const hardDropPlayer = useCallback((board: GameBoard) => {
+        setPlayer(prevPlayer => {
+            if (prevPlayer.tetromino.shape.length === 1 && prevPlayer.tetromino.shape[0][0] === 0) {
+                return prevPlayer;
+            }
+
+            let yOffset = 0;
+            while (!checkCollision(prevPlayer, board, { x: 0, y: yOffset + 1 })) {
+                yOffset++;
+            }
+            
+            return {
+                ...prevPlayer,
+                pos: { x: prevPlayer.pos.x, y: prevPlayer.pos.y + yOffset },
+                collided: true,
+            };
+        });
+    }, []);
+
+    return { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, hardDropPlayer };
 };

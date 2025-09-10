@@ -1,6 +1,4 @@
-
 import React, { useState, useCallback, KeyboardEvent, useEffect, TouchEvent } from 'react';
-// FIX: Import checkCollision to handle game logic correctly
 import { createBoard, BOARD_WIDTH, checkCollision } from './gameHelpers';
 
 // Custom Hooks
@@ -20,11 +18,20 @@ const App: React.FC = () => {
     const [dropTime, setDropTime] = useState<number | null>(null);
     const [gameOver, setGameOver] = useState<boolean>(true);
 
-    const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino } = usePlayer();
+    const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, hardDropPlayer } = usePlayer();
     const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer, nextTetromino, setGameOver);
     const { score, setScore, rows, setRows, level, setLevel } = useGameStatus(rowsCleared);
     const [highScore, setHighScore] = useState<number>(0);
     const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
+
+    // This effect synchronizes the game's clock with its state. When the game is over,
+    // the drop timer is immediately stopped, preventing the final, unwanted 'drop' call
+    // that was causing the rendering glitch.
+    useEffect(() => {
+        if (gameOver) {
+            setDropTime(null);
+        }
+    }, [gameOver]);
 
     useEffect(() => {
         const savedHighScore = localStorage.getItem('tetrisHighScore');
@@ -40,7 +47,6 @@ const App: React.FC = () => {
         }
     }, [score, highScore]);
 
-    // FIX: Collision detection should happen here, before updating player position.
     const movePlayer = (dir: number) => {
         if (!checkCollision(player, board, { x: dir, y: 0 })) {
             updatePlayerPos({ x: dir, y: 0, collided: false });
@@ -58,22 +64,14 @@ const App: React.FC = () => {
     }, [resetPlayer, setBoard, setLevel, setRows, setScore]);
 
     const drop = useCallback(() => {
-        // Increase level when player has cleared 10 rows
         if (rows > (level + 1) * 10) {
             setLevel(prev => prev + 1);
-            // Also increase speed
             setDropTime(1000 / (level + 1) + 200);
         }
 
-        // FIX: Check for collision before moving the piece down.
         if (!checkCollision(player, board, { x: 0, y: 1 })) {
             updatePlayerPos({ x: 0, y: 1, collided: false });
         } else {
-            // Game over!
-            if (player.pos.y < 1) {
-                setGameOver(true);
-                setDropTime(null);
-            }
             updatePlayerPos({ x: 0, y: 0, collided: true });
         }
     }, [board, level, player, rows, setLevel, updatePlayerPos]);
@@ -91,13 +89,8 @@ const App: React.FC = () => {
         drop();
     };
 
-    // FIX: Correctly implement hard drop functionality.
     const hardDrop = () => {
-        let y = 0;
-        while (!checkCollision(player, board, { x: 0, y: y + 1 })) {
-            y++;
-        }
-        updatePlayerPos({ x: 0, y, collided: true });
+        hardDropPlayer(board);
     };
 
      const move = ({ keyCode }: KeyboardEvent<HTMLDivElement>): void => {
@@ -111,7 +104,6 @@ const App: React.FC = () => {
             } else if (keyCode === 38) { // up arrow
                 playerRotate(board, 1);
             } else if (keyCode === 32) { // space bar
-                // FIX: The original hard drop logic caused an infinite loop.
                 hardDrop();
             }
         }
@@ -123,9 +115,7 @@ const App: React.FC = () => {
         setTouchStart({ x: firstTouch.clientX, y: firstTouch.clientY });
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-        // This is handled by touch-action CSS property now
-    };
+    const handleTouchMove = (e: TouchEvent) => {};
 
     const handleTouchEnd = (e: TouchEvent) => {
         if (!touchStart || gameOver) return;
@@ -191,7 +181,7 @@ const App: React.FC = () => {
                     ) : (
                         <div className='flex flex-col gap-4'>
                             <NextPiece tetromino={nextTetromino}/>
-                            <StartButton callback={() => setGameOver(true)} text="Restartovat" />
+                            <StartButton callback={startGame} text="Restartovat" />
                             <Display text={`Skóre: ${score}`} />
                             <Display text={`Řádky: ${rows}`} />
                             <Display text={`Úroveň: ${level}`} />

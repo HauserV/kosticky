@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { createBoard, GameBoard, checkCollision, TETROMINOS, BOARD_WIDTH } from '../gameHelpers';
+import { createBoard, GameBoard, checkCollision, TETROMINOS, BOARD_WIDTH, BOARD_HEIGHT } from '../gameHelpers';
 import { Player } from './usePlayer';
 
 export const useBoard = (
@@ -27,12 +26,10 @@ export const useBoard = (
             }, [] as GameBoard);
 
         const updateBoard = (prevBoard: GameBoard): GameBoard => {
-            // First, clear the board of any 'clear' cells from the previous render
             const newBoard = prevBoard.map(
                 row => row.map(cell => (cell[1] === 'clear' ? [0, 'clear'] : cell)) as typeof row
             );
 
-            // Then draw the tetromino
             player.tetromino.shape.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if (value !== 0) {
@@ -59,22 +56,42 @@ export const useBoard = (
 
                 if (checkCollision(nextPiecePlayer, newBoardAfterSweep, { x: 0, y: 0 })) {
                     setGameOver(true);
-                    // Draw the final piece that caused the game to end, but only in empty cells
-                    nextPiecePlayer.tetromino.shape.forEach((row, y) => {
-                        row.forEach((value, x) => {
-                            if (value !== 0) {
-                                const boardY = y + nextPiecePlayer.pos.y;
-                                const boardX = x + nextPiecePlayer.pos.x;
-                                if (
-                                    newBoardAfterSweep[boardY] && 
-                                    newBoardAfterSweep[boardY][boardX] &&
-                                    newBoardAfterSweep[boardY][boardX][1] === 'clear' // Only draw if the cell is empty
-                                ) {
-                                    newBoardAfterSweep[boardY][boardX] = [value, 'merged'];
+
+                    // FIX: This is the definitive implementation of your requested logic.
+                    // 1. A safe, deep copy of the board is created.
+                    const finalBoard = JSON.parse(JSON.stringify(newBoardAfterSweep));
+
+                    // 2. Calculate exactly how many empty rows are at the top of the board.
+                    let availableRows = 0;
+                    for (let y = 0; y < BOARD_HEIGHT; y++) {
+                        if (newBoardAfterSweep[y].every(cell => cell[1] === 'clear')) {
+                            availableRows++;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // 3. Render the bottom part of the next piece into the available space.
+                    const shape = nextPiecePlayer.tetromino.shape;
+                    const shapeHeight = shape.length;
+
+                    for (let boardY = 0; boardY < availableRows; boardY++) {
+                        // Map the board row to the corresponding row in the piece's shape array
+                        const shapeY = shapeHeight - availableRows + boardY;
+                        
+                        if (shape[shapeY]) {
+                            const row = shape[shapeY];
+                            row.forEach((value, x) => {
+                                if (value !== 0) {
+                                    const boardX = x + nextPiecePlayer.pos.x;
+                                    if (newBoardAfterSweep[boardY] && newBoardAfterSweep[boardY][boardX]) {
+                                        newBoardAfterSweep[boardY][boardX] = [value, 'merged'];
+                                    }
                                 }
-                            }
-                        });
-                    });
+                            });
+                        }
+                    }
+                    
                     return newBoardAfterSweep;
                 } 
                 
@@ -86,7 +103,7 @@ export const useBoard = (
         };
 
         setBoard(prev => updateBoard(prev));
-    }, [player, resetPlayer, nextTetromino, setGameOver]);
+    }, [player, nextTetromino, resetPlayer, setGameOver]);
 
     return { board, setBoard, rowsCleared };
 };
