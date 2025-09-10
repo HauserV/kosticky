@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, KeyboardEvent, useEffect, TouchEvent } from 'react';
 import { createBoard, BOARD_WIDTH, checkCollision } from './gameHelpers';
 
@@ -12,11 +13,60 @@ import Board from './components/Board';
 import Display from './components/Display';
 import StartButton from './components/StartButton';
 import NextPiece from './components/NextPiece';
-import Controls from './components/Controls';
+
+type InstructionsProps = {
+    onBack: () => void;
+};
+
+const Instructions: React.FC<InstructionsProps> = ({ onBack }) => {
+    return (
+        <div className="flex flex-col items-center justify-center text-white p-6 max-w-2xl mx-auto bg-gray-800 border-2 border-gray-600 rounded-lg">
+            <h2 className="font-press-start text-2xl text-cyan-400 mb-6">Návod</h2>
+            
+            <div className="text-left w-full space-y-6 text-sm md:text-base">
+                <div>
+                    <h3 className="font-press-start text-lg mb-2 text-yellow-400">Cíl Hry</h3>
+                    <p>Cílem je manipulovat s padajícími bloky (tetrominy) tak, abyste vytvořili co nejvíce vodorovných řad bez mezer. Když je řada kompletní, zmizí a vy získáte body.</p>
+                </div>
+
+                <div>
+                    <h3 className="font-press-start text-lg mb-2 text-yellow-400">Ovládání (Klávesnice)</h3>
+                    <ul className="list-disc list-inside space-y-1 pl-4">
+                        <li><strong>Šipka vlevo:</strong> Posun doleva</li>
+                        <li><strong>Šipka vpravo:</strong> Posun doprava</li>
+                        <li><strong>Šipka nahoru:</strong> Otočení</li>
+                        <li><strong>Šipka dolů:</strong> Měkký pád (urychlení)</li>
+                        <li><strong>Mezerník:</strong> Tvrdý pád (okamžité umístění)</li>
+                        <li><strong>P:</strong> Pauza / Pokračovat</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 className="font-press-start text-lg mb-2 text-yellow-400">Ovládání (Dotykové)</h3>
+                    <ul className="list-disc list-inside space-y-1 pl-4">
+                        <li><strong>Přejetí vlevo/vpravo:</strong> Posun doleva/doprava</li>
+                        <li><strong>Přejetí nahoru / Klepnutí:</strong> Otočení</li>
+                        <li><strong>Přejetí dolů:</strong> Tvrdý pád</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 className="font-press-start text-lg mb-2 text-yellow-400">Bodování</h3>
+                    <p>Body získáváte za každou vyčištěnou řadu. Čím více řad vyčistíte najednou, tím více bodů získáte. S postupem do vyšších úrovní se hra zrychluje!</p>
+                </div>
+            </div>
+            
+            <StartButton callback={onBack} text="Zpět" className="w-full sm:w-1/2 mt-8" />
+        </div>
+    );
+};
+
 
 const App: React.FC = () => {
     const [dropTime, setDropTime] = useState<number | null>(null);
     const [gameOver, setGameOver] = useState<boolean>(true);
+    const [isPaused, setIsPaused] = useState<boolean>(false);
+    const [showInstructions, setShowInstructions] = useState<boolean>(false);
 
     const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, hardDropPlayer } = usePlayer();
     const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer, nextTetromino, setGameOver);
@@ -24,9 +74,6 @@ const App: React.FC = () => {
     const [highScore, setHighScore] = useState<number>(0);
     const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
 
-    // This effect synchronizes the game's clock with its state. When the game is over,
-    // the drop timer is immediately stopped, preventing the final, unwanted 'drop' call
-    // that was causing the rendering glitch.
     useEffect(() => {
         if (gameOver) {
             setDropTime(null);
@@ -61,7 +108,27 @@ const App: React.FC = () => {
         setScore(0);
         setRows(0);
         setLevel(0);
+        setIsPaused(false);
     }, [resetPlayer, setBoard, setLevel, setRows, setScore]);
+
+    const endGame = useCallback(() => {
+        setGameOver(true);
+        setDropTime(null);
+        setBoard(createBoard());
+    }, [setBoard]);
+    
+    const togglePause = useCallback(() => {
+        if (gameOver) return;
+        setIsPaused(prev => {
+            const newPausedState = !prev;
+            if (newPausedState) {
+                setDropTime(null);
+            } else {
+                setDropTime(1000 / (level + 1) + 200);
+            }
+            return newPausedState;
+        });
+    }, [gameOver, level]);
 
     const drop = useCallback(() => {
         if (rows > (level + 1) * 10) {
@@ -77,7 +144,7 @@ const App: React.FC = () => {
     }, [board, level, player, rows, setLevel, updatePlayerPos]);
 
     const keyUp = ({ keyCode }: { keyCode: number }) => {
-        if (!gameOver) {
+        if (!gameOver && !isPaused) {
             if (keyCode === 40) { // down arrow
                 setDropTime(1000 / (level + 1) + 200);
             }
@@ -85,6 +152,7 @@ const App: React.FC = () => {
     };
 
     const dropPlayer = () => {
+        if (isPaused) return;
         setDropTime(null);
         drop();
     };
@@ -95,6 +163,12 @@ const App: React.FC = () => {
 
      const move = ({ keyCode }: KeyboardEvent<HTMLDivElement>): void => {
         if (!gameOver) {
+            if (keyCode === 80) { // 'P' key for pause
+                togglePause();
+                return;
+            }
+            if(isPaused) return;
+
             if (keyCode === 37) { // left arrow
                 movePlayer(-1);
             } else if (keyCode === 39) { // right arrow
@@ -110,7 +184,7 @@ const App: React.FC = () => {
     };
 
     const handleTouchStart = (e: TouchEvent) => {
-        if (gameOver) return;
+        if (gameOver || isPaused) return;
         const firstTouch = e.touches[0];
         setTouchStart({ x: firstTouch.clientX, y: firstTouch.clientY });
     };
@@ -118,7 +192,7 @@ const App: React.FC = () => {
     const handleTouchMove = (e: TouchEvent) => {};
 
     const handleTouchEnd = (e: TouchEvent) => {
-        if (!touchStart || gameOver) return;
+        if (!touchStart || gameOver || isPaused) return;
 
         const touchEnd = e.changedTouches[0];
         const deltaX = touchEnd.clientX - touchStart.x;
@@ -151,46 +225,58 @@ const App: React.FC = () => {
 
     return (
         <div 
-            className="w-full min-h-screen bg-[#0d1117] text-white flex flex-col items-center justify-center p-4" 
+            className="w-full min-h-screen bg-[#0d1117] text-white flex flex-col justify-center p-4" 
             role="button" 
             tabIndex={0} 
             onKeyDown={e => move(e)} 
             onKeyUp={keyUp}
         >
-            <div className="flex flex-col md:flex-row gap-10 items-start">
-                <div className="flex flex-col items-center">
-                    <h1 className="font-press-start text-4xl mb-6 text-cyan-400">TETRIS</h1>
-                    <div 
-                        className="border-4 border-gray-600 rounded-lg bg-black shadow-lg"
-                        style={{ height: '70vh', maxHeight: '800px', touchAction: 'none' }}
-                        onTouchStart={handleTouchStart}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                    >
-                        <Board board={board} />
+            <h1 className="font-press-start text-4xl mb-6 text-cyan-400 w-full text-center">TETRIS</h1>
+            {showInstructions ? (
+                <Instructions onBack={() => setShowInstructions(false)} />
+            ) : (
+                <div className="flex flex-col md:flex-row gap-10 items-start self-center">
+                    <div className="relative">
+                        {isPaused && !gameOver && (
+                            <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+                                <p className="font-press-start text-2xl text-white">Pozastaveno</p>
+                            </div>
+                        )}
+                        <div 
+                            className="border-4 border-gray-600 rounded-lg bg-black shadow-lg"
+                            style={{ height: '70vh', maxHeight: '800px', touchAction: 'none' }}
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                        >
+                            <Board board={board} />
+                        </div>
                     </div>
+                    <aside className="w-full md:w-60 flex flex-col gap-4">
+                        {gameOver ? (
+                            <div className="flex flex-col gap-4 w-full">
+                                {score > 0 && <Display text="Konec Hry" />}
+                                {score > 0 && <Display text={`Tvé skóre: ${score}`} />}
+                                <StartButton callback={startGame} text={score > 0 ? "Hrát Znovu" : "Start"} className="w-full" />
+                                <StartButton callback={() => setShowInstructions(true)} text="Návod" className="w-full bg-gray-600 hover:bg-gray-700" />
+                                <Display text={`Nejvyšší skóre: ${highScore}`} />
+                            </div>
+                        ) : (
+                            <div className='flex flex-col gap-4'>
+                                <NextPiece tetromino={nextTetromino}/>
+                                <div className="flex flex-col w-full gap-2">
+                                <StartButton callback={togglePause} text={isPaused ? "Pokračovat" : "Pozastavit"} className="w-full text-sm" />
+                                <StartButton callback={endGame} text="Konec" className="w-full text-sm" />
+                                </div>
+                                <Display text={`Skóre: ${score}`} />
+                                <Display text={`Řádky: ${rows}`} />
+                                <Display text={`Úroveň: ${level}`} />
+                                <Display text={`Nejvyšší skóre: ${highScore}`} />
+                            </div>
+                        )}
+                    </aside>
                 </div>
-                <aside className="w-full md:w-60 flex flex-col gap-4">
-                    {gameOver ? (
-                        <div className="flex flex-col gap-4 w-full">
-                            {score > 0 && <Display text="Konec Hry" />}
-                            {score > 0 && <Display text={`Tvé skóre: ${score}`} />}
-                            <StartButton callback={startGame} text={score > 0 ? "Hrát Znovu" : "Start"} />
-                            <Display text={`Nejvyšší skóre: ${highScore}`} />
-                        </div>
-                    ) : (
-                        <div className='flex flex-col gap-4'>
-                            <NextPiece tetromino={nextTetromino}/>
-                            <StartButton callback={startGame} text="Restartovat" />
-                            <Display text={`Skóre: ${score}`} />
-                            <Display text={`Řádky: ${rows}`} />
-                            <Display text={`Úroveň: ${level}`} />
-                            <Display text={`Nejvyšší skóre: ${highScore}`} />
-                        </div>
-                    )}
-                    <Controls />
-                </aside>
-            </div>
+            )}
         </div>
     );
 };
