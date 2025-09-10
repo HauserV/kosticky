@@ -118,14 +118,13 @@ const App: React.FC = () => {
     };
 
     const handleTouchStart = (e: TouchEvent) => {
-        e.preventDefault();
         if (gameOver) return;
         const firstTouch = e.touches[0];
         setTouchStart({ x: firstTouch.clientX, y: firstTouch.clientY });
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-        e.preventDefault();
+        // This is handled by touch-action CSS property now
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
@@ -167,16 +166,16 @@ const App: React.FC = () => {
             tabIndex={0} 
             onKeyDown={e => move(e)} 
             onKeyUp={keyUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
         >
             <div className="flex flex-col md:flex-row gap-10 items-start">
                 <div className="flex flex-col items-center">
                     <h1 className="font-press-start text-4xl mb-6 text-cyan-400">TETRIS</h1>
                     <div 
                         className="border-4 border-gray-600 rounded-lg bg-black shadow-lg"
-                        style={{ height: '70vh', maxHeight: '800px' }}
+                        style={{ height: '70vh', maxHeight: '800px', touchAction: 'none' }}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
                     >
                         <Board board={board} />
                     </div>
@@ -185,18 +184,18 @@ const App: React.FC = () => {
                     {gameOver ? (
                         <div className="flex flex-col gap-4 w-full">
                             {score > 0 && <Display text="Konec Hry" />}
-                            <Display text={`Nejvyšší skóre: ${highScore}`} />
                             {score > 0 && <Display text={`Tvé skóre: ${score}`} />}
                             <StartButton callback={startGame} text={score > 0 ? "Hrát Znovu" : "Start"} />
+                            <Display text={`Nejvyšší skóre: ${highScore}`} />
                         </div>
                     ) : (
                         <div className='flex flex-col gap-4'>
-                            <Display text={`Nejvyšší skóre: ${highScore}`} />
                             <NextPiece tetromino={nextTetromino}/>
+                            <StartButton callback={() => setGameOver(true)} text="Restartovat" />
                             <Display text={`Skóre: ${score}`} />
                             <Display text={`Řádky: ${rows}`} />
                             <Display text={`Úroveň: ${level}`} />
-                            <StartButton callback={() => setGameOver(true)} text="Restartovat" />
+                            <Display text={`Nejvyšší skóre: ${highScore}`} />
                         </div>
                     )}
                     <Controls />

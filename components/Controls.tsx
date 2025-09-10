@@ -17,9 +17,10 @@ const Controls: React.FC = () => (
             <div>
                  <h3 className="text-cyan-400 mb-2">Dotyk</h3>
                  <ul className="space-y-1">
-                    <li><span className="w-[110px] inline-block">Ťuknutí/Nahoru:</span> Otočit</li>
-                    <li><span className="w-[110px] inline-block">Do stran:</span> Pohyb</li>
-                    <li><span className="w-[110px] inline-block">Dolů:</span> Pád</li>
+                    <li><span className="w-[110px] inline-block">Ťuknutí:</span> Otočit</li>
+                    <li><span className="w-[110px] inline-block">Přejetí nahoru:</span> Otočit</li>
+                    <li><span className="w-[110px] inline-block">Přejetí do stran:</span> Pohyb</li>
+                    <li><span className="w-[110px] inline-block">Přejetí dolů:</span> Pád</li>
                  </ul>
             </div>
         </div>
