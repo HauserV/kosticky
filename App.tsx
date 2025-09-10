@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, KeyboardEvent, useEffect } from 'react';
+import React, { useState, useCallback, KeyboardEvent, useEffect, TouchEvent } from 'react';
 // FIX: Import checkCollision to handle game logic correctly
 import { createBoard, BOARD_WIDTH, checkCollision } from './gameHelpers';
 
@@ -24,6 +24,7 @@ const App: React.FC = () => {
     const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer, nextTetromino, setGameOver);
     const { score, setScore, rows, setRows, level, setLevel } = useGameStatus(rowsCleared);
     const [highScore, setHighScore] = useState<number>(0);
+    const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
 
     useEffect(() => {
         const savedHighScore = localStorage.getItem('tetrisHighScore');
@@ -116,6 +117,45 @@ const App: React.FC = () => {
         }
     };
 
+    const handleTouchStart = (e: TouchEvent) => {
+        e.preventDefault();
+        if (gameOver) return;
+        const firstTouch = e.touches[0];
+        setTouchStart({ x: firstTouch.clientX, y: firstTouch.clientY });
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+        e.preventDefault();
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+        if (!touchStart || gameOver) return;
+
+        const touchEnd = e.changedTouches[0];
+        const deltaX = touchEnd.clientX - touchStart.x;
+        const deltaY = touchEnd.clientY - touchStart.y;
+        const swipeThreshold = 30;
+        const tapThreshold = 10;
+
+        setTouchStart(null);
+
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > swipeThreshold) {
+            if (deltaY > 0) {
+                hardDrop(); // Swipe Down
+            } else {
+                playerRotate(board, 1); // Swipe Up
+            }
+        } else if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold) {
+            if (deltaX > 0) {
+                movePlayer(1); // Swipe Right
+            } else {
+                movePlayer(-1); // Swipe Left
+            }
+        } else if (Math.abs(deltaX) < tapThreshold && Math.abs(deltaY) < tapThreshold) {
+            playerRotate(board, 1); // Tap
+        }
+    };
+
     useInterval(() => {
         drop();
     }, dropTime);
@@ -127,6 +167,9 @@ const App: React.FC = () => {
             tabIndex={0} 
             onKeyDown={e => move(e)} 
             onKeyUp={keyUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
         >
             <div className="flex flex-col md:flex-row gap-10 items-start">
                 <div className="flex flex-col items-center">
