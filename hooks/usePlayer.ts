@@ -22,8 +22,13 @@ export const usePlayer = () => {
     const [nextTetromino, setNextTetromino] = useState<keyof typeof TETROMINOS>(Object.keys(TETROMINOS)[Math.floor(Math.random() * (Object.keys(TETROMINOS).length-1))+1]);
 
     const rotate = (matrix: TetrominoShape, dir: number) => {
-        const rotatedTetro = matrix.map((_, index) => matrix.map(col => col[index]));
+        // Transpose rows and columns
+        const rotatedTetro = matrix[0].map((_, colIndex) => matrix.map(row => row[colIndex]));
+        
+        // Reverse each row to get a clockwise rotation
         if (dir > 0) return rotatedTetro.map(row => row.reverse());
+
+        // Reverse the matrix to get a counter-clockwise rotation
         return rotatedTetro.reverse();
     };
 
